@@ -98,12 +98,6 @@ public class DBLooperPanel extends JPanel {
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(DBLooperPanel.class);
 
-    private static final String INPUT_COLUMNS_VAR = "input_columns";
-
-    private static final String DB_COLUMNS_VAR = "db_columns";
-
-    private static final String FLOW_VARIABLES_VAR = "flow_variables";
-
     private final DefaultListModel<DataColumnSpec> m_knimeColumnsModel = new DefaultListModel<DataColumnSpec>();
 
     private final JList<DataColumnSpec> m_knimeColumnsList = new JList<DataColumnSpec>(m_knimeColumnsModel);
@@ -130,7 +124,7 @@ public class DBLooperPanel extends JPanel {
         final JSplitPane mainSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         mainSplitPane.setLeftComponent(createColumnsAndVariablesPanel());
         mainSplitPane.setRightComponent(createEditorPanel());
-        setPreferredSize(new Dimension(800, 600));
+//        setPreferredSize(new Dimension(800, 600));
         add(mainSplitPane, BorderLayout.CENTER);
         add(createOptionsPanel(), BorderLayout.SOUTH);
     }
@@ -155,8 +149,8 @@ public class DBLooperPanel extends JPanel {
                     final int index = m_knimeColumnsList.locationToIndex(
                         evt.getPoint());
                     final DataColumnSpec colSpec = m_knimeColumnsModel.get(index);
-                    m_editor.replaceSelection(createVariableAccessString(
-                        INPUT_COLUMNS_VAR, colSpec.getName()));
+                    m_editor.replaceSelection(DBLooperNodeModel
+                        .getColumnPlaceHolder(colSpec));
                     m_editor.requestFocus();
                 }
             }
@@ -180,8 +174,7 @@ public class DBLooperPanel extends JPanel {
                     final int index = m_dbColumnsList.locationToIndex(
                         evt.getPoint());
                     final DataColumnSpec colSpec = m_dbColumnsModel.get(index);
-                    m_editor.replaceSelection(createVariableAccessString(
-                        DB_COLUMNS_VAR, colSpec.getName()));
+                    m_editor.replaceSelection(colSpec.getName());
                     m_editor.requestFocus();
                 }
             }
@@ -262,6 +255,7 @@ public class DBLooperPanel extends JPanel {
         editorLabel.setBorder(new EmptyBorder(5, 5, 5, 5));
 
         final RTextScrollPane editorScrollPane = new RTextScrollPane(m_editor);
+        editorScrollPane.setPreferredSize(new Dimension(600, 400));
         editorScrollPane.setFoldIndicatorEnabled(true);
         panel.add(editorLabel, BorderLayout.NORTH);
         panel.add(editorScrollPane, BorderLayout.CENTER);
@@ -330,21 +324,7 @@ public class DBLooperPanel extends JPanel {
         editor.setRoundedSelectionEdges(true);
         editor.setBorder(new EtchedBorder());
         editor.setTabSize(4);
-        editor.setPreferredSize(new Dimension(600, 400));
         return editor;
-    }
-
-    /**
-     * Creates the string used to access a variable in the source code.
-     *
-     * @param variable
-     *            The variable name
-     * @param field
-     *            Name of the field inside the variable
-     * @return Variable excess string
-     */
-    private static String createVariableAccessString(final String variable, final String field){
-        return variable + "['" + field.replace("\\", "\\\\").replace("'", "\\'") + "']";
     }
 
 }

@@ -1,18 +1,17 @@
 package org.knime.base.node.io.database.looper;
 
-import java.io.File;
-import java.io.IOException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import org.knime.base.node.io.database.DBNodeModel;
 import org.knime.base.util.flowvariable.FlowVariableProvider;
 import org.knime.base.util.flowvariable.FlowVariableResolver;
+import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.BufferedDataTable;
-import org.knime.core.node.CanceledExecutionException;
 import org.knime.core.node.ExecutionContext;
-import org.knime.core.node.ExecutionMonitor;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeLogger;
-import org.knime.core.node.NodeModel;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
@@ -28,7 +27,7 @@ import org.knime.core.node.port.database.DatabaseQueryConnectionSettings;
  *
  * @author Budi Yanto, KNIME.com
  */
-public class DBLooperNodeModel extends NodeModel implements FlowVariableProvider{
+public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvider{
 
     private static final NodeLogger LOGGER = NodeLogger.getLogger(DBLooperNodeModel.class);
 
@@ -39,6 +38,8 @@ public class DBLooperNodeModel extends NodeModel implements FlowVariableProvider
     static final boolean DEF_RETAIN_ALL_COLUMNS = false;
 
     static final String CFG_SQL_STATEMENT = "sql_statement";
+
+    static final String INPUT_COLUMNS_PLACEHOLDER = "input_columns";
 
     private final SettingsModelBoolean m_appendInputColumnsModel = createAppendInputColsModel();
 
@@ -74,8 +75,13 @@ public class DBLooperNodeModel extends NodeModel implements FlowVariableProvider
     protected PortObject[] execute(final PortObject[] inData, final ExecutionContext exec)
             throws Exception {
 
-        final String statement = FlowVariableResolver.parse(m_sqlStatement, this);
-        LOGGER.debug("SQL Statement: " + statement);
+        final String newQuery = parseSQLStatement(m_sqlStatement);
+
+        LOGGER.debug("SQL Statement: " + newQuery);
+
+        if(m_appendInputColumnsModel.getBooleanValue()) {
+
+        }
 
         return new BufferedDataTable[]{(BufferedDataTable)inData[0]};
     }
@@ -94,12 +100,35 @@ public class DBLooperNodeModel extends NodeModel implements FlowVariableProvider
     @Override
     protected PortObjectSpec[] configure(final PortObjectSpec[] inSpecs) throws InvalidSettingsException {
 
-        DataTableSpec outSpec = null;
-        if(m_retainAllColumns.getBooleanValue()){
-            outSpec = (DataTableSpec) inSpecs[0];
+        final DataTableSpec inSpec = (DataTableSpec) inSpecs[0];
+        if(inSpec.getNumColumns() < 1) {
+            throw new InvalidSettingsException("No column spec available.");
         }
 
-        return new DataTableSpec[]{outSpec};
+        validateColumns(inSpec, m_sqlStatement);
+
+//        final DatabasePortObjectSpec dbSpec = (DatabasePortObjectSpec) inSpecs[1];
+//        DatabaseQueryConnectionSettings conn = dbSpec.getConnectionSettings(getCredentialsProvider());
+//        String newQuery = parseSQLStatement(conn.getQuery());
+//
+//        LOGGER.debug("Original Query: " + newQuery);
+//
+//        conn = createDBQueryConnection(dbSpec, newQuery);
+
+        return new DataTableSpec[1];
+
+
+
+
+
+
+
+//        DataTableSpec outSpec = null;
+//        if(m_retainAllColumns.getBooleanValue()){
+//            outSpec = (DataTableSpec) inSpecs[0];
+//        }
+
+
     }
 
     /**
@@ -142,28 +171,60 @@ public class DBLooperNodeModel extends NodeModel implements FlowVariableProvider
     }
 
     /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void loadInternals(final File internDir, final ExecutionMonitor exec)
-        throws IOException, CanceledExecutionException {
-        // TODO: generated method stub
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    protected void saveInternals(final File internDir, final ExecutionMonitor exec)
-        throws IOException, CanceledExecutionException {
-        // TODO: generated method stub
-    }
-
-    /**
      * @return the default source code
      */
     static String getDefaultSQLStatement() {
         return "SELECT * FROM " + DatabaseQueryConnectionSettings.TABLE_PLACEHOLDER;
+    }
+
+    static String getColumnPlaceHolder(final DataColumnSpec colSpec) {
+        return "${" + colSpec.getName() + "}$";
+    }
+
+    /**
+     * Parses the given SQL query and resolves the table placeholder and
+     * variables.
+     * @param query the query used to replace the table placeholder
+     * (the incoming query from the Database Connector)
+     */
+    private String parseSQLStatement(final String query) {
+//        final StringBuilder builder = new StringBuilder();
+//        final String[] inQueris = query.split(DBReader.SQL_QUERY_SEPARATOR);
+//        String inSelect = inQueris[inQueris.length - 1];
+//        for(int i = 0; i < inQueris.length; i++) {
+//            builder.append(inQueris[i]);
+//            builder.append(DBReader.SQL_QUERY_SEPARATOR);
+//        }
+
+        // Replace the "#table#" placeholder with the input query
+        String resultQuery = m_sqlStatement.replaceAll
+                (DatabaseQueryConnectionSettings.TABLE_PLACEHOLDER, "(" + query + ")");
+
+        // Replace the flowVariable placeholder with the actual value
+        resultQuery = FlowVariableResolver.parse(resultQuery, this);
+
+        // Replace the column placeholder with '?'
+        resultQuery = resultQuery.replaceAll("\\$\\{(.*?)\\}\\$", "?");
+
+        return resultQuery;
+
+//        builder.append(resultQuery);
+//
+//        return builder.toString();
+
+    }
+
+    private void validateColumns(final DataTableSpec spec, final String query)
+            throws InvalidSettingsException {
+        final Pattern pattern = Pattern.compile("\\$\\{(.*?)\\}\\$");
+        final Matcher matcher = pattern.matcher(query);
+        while(matcher.find()) {
+            final String col = matcher.group(1);
+            if(!spec.containsName(col)) {
+                throw new InvalidSettingsException("Cannot find column " + col
+                    + " in the input table.");
+            }
+        }
     }
 
 }

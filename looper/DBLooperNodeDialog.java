@@ -1,5 +1,6 @@
 package org.knime.base.node.io.database.looper;
 
+import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeDialogPane;
 import org.knime.core.node.NodeSettingsRO;
@@ -47,8 +48,13 @@ public class DBLooperNodeDialog extends NodeDialogPane {
     protected void loadSettingsFrom(final NodeSettingsRO settings,
             final PortObjectSpec[] specs) throws NotConfigurableException {
 
+        final DataTableSpec inSpec = (DataTableSpec) specs[0];
+        if(inSpec.getNumColumns() < 1) {
+            throw new NotConfigurableException("No column spec available");
+        }
+
         if(specs[1] == null){
-            throw new NotConfigurableException("No valid database connection available");
+            throw new NotConfigurableException("No valid database connection available.");
         }
 
         m_panel.loadSettingsFrom(settings, specs, getAvailableFlowVariables().values());
