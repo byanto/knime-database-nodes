@@ -131,6 +131,30 @@ public class DBLooperPanel extends JPanel {
 
     private JComponent createColumnsAndVariablesPanel() {
 
+        /* Create database column list */
+        final JPanel dbColumnsPanel = new JPanel(new BorderLayout());
+        final JLabel dbColumnsLabel = new JLabel("Database Columns");
+        dbColumnsLabel.setBorder(new EmptyBorder(5, 5, 5, 5));
+        dbColumnsPanel.add(dbColumnsLabel, BorderLayout.NORTH);
+        dbColumnsPanel.add(new JScrollPane(m_dbColumnsList), BorderLayout.CENTER);
+        m_dbColumnsList.setCellRenderer(new DataColumnSpecListCellRenderer());
+        m_dbColumnsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        m_dbColumnsList.addMouseListener(new MouseAdapter() {
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void mouseClicked(final MouseEvent evt) {
+                if(evt.getClickCount() == 2){
+                    final int index = m_dbColumnsList.locationToIndex(
+                        evt.getPoint());
+                    final DataColumnSpec colSpec = m_dbColumnsModel.get(index);
+                    m_editor.replaceSelection(colSpec.getName());
+                    m_editor.requestFocus();
+                }
+            }
+        });
+
         /* Create Knime column list */
         final JPanel knimeColumnsPanel = new JPanel(new BorderLayout());
         final JLabel knimeColumnsLabel = new JLabel("Input Columns");
@@ -156,36 +180,12 @@ public class DBLooperPanel extends JPanel {
             }
         });
 
-        /* Create database column list */
-        final JPanel dbColumnsPanel = new JPanel(new BorderLayout());
-        final JLabel dbColumnsLabel = new JLabel("Database Columns");
-        dbColumnsLabel.setBorder(new EmptyBorder(5, 5, 5, 5));
-        dbColumnsPanel.add(dbColumnsLabel, BorderLayout.NORTH);
-        dbColumnsPanel.add(new JScrollPane(m_dbColumnsList), BorderLayout.CENTER);
-        m_dbColumnsList.setCellRenderer(new DataColumnSpecListCellRenderer());
-        m_dbColumnsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        m_dbColumnsList.addMouseListener(new MouseAdapter() {
-            /**
-             * {@inheritDoc}
-             */
-            @Override
-            public void mouseClicked(final MouseEvent evt) {
-                if(evt.getClickCount() == 2){
-                    final int index = m_dbColumnsList.locationToIndex(
-                        evt.getPoint());
-                    final DataColumnSpec colSpec = m_dbColumnsModel.get(index);
-                    m_editor.replaceSelection(colSpec.getName());
-                    m_editor.requestFocus();
-                }
-            }
-        });
-
         final JSplitPane columnsSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         columnsSplitPane.setResizeWeight(0.5);
         columnsSplitPane.setOneTouchExpandable(true);
         columnsSplitPane.setDividerSize(8);
-        columnsSplitPane.setTopComponent(knimeColumnsPanel);
-        columnsSplitPane.setBottomComponent(dbColumnsPanel);
+        columnsSplitPane.setTopComponent(dbColumnsPanel);
+        columnsSplitPane.setBottomComponent(knimeColumnsPanel);
         columnsSplitPane.setDividerLocation(160);
 
         /* Create flow variables list*/
@@ -230,7 +230,8 @@ public class DBLooperPanel extends JPanel {
         panel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLoweredBevelBorder(),
             BorderFactory.createTitledBorder("Options")));
-        final Box box = Box.createVerticalBox();
+//        final Box box = Box.createVerticalBox();
+        final Box box = Box.createHorizontalBox();
         box.add(new DialogComponentBoolean(m_appendInputColsModel,
             "Append input columns")
             .getComponentPanel());

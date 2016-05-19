@@ -1,5 +1,7 @@
 package org.knime.base.node.io.database.looper;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,6 +22,13 @@ import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.PortType;
 import org.knime.core.node.port.database.DatabasePortObject;
 import org.knime.core.node.port.database.DatabaseQueryConnectionSettings;
+import org.knime.core.node.port.database.reader.DBReader;
+import org.knime.core.node.streamable.InputPortRole;
+import org.knime.core.node.streamable.OutputPortRole;
+import org.knime.core.node.streamable.PartitionInfo;
+import org.knime.core.node.streamable.PortInput;
+import org.knime.core.node.streamable.PortOutput;
+import org.knime.core.node.streamable.StreamableOperator;
 
 /**
  * This is the model implementation of DBLooper.
@@ -49,6 +58,8 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
 
     private String m_sqlStatement = getDefaultSQLStatement();
 
+    private List<String> m_dataColumns = new ArrayList<String>();
+
     static SettingsModelBoolean createAppendInputColsModel() {
         return new SettingsModelBoolean("append_input_columns", DEF_APPEND_INPUT_COL);
     }
@@ -75,15 +86,27 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
     protected PortObject[] execute(final PortObject[] inData, final ExecutionContext exec)
             throws Exception {
 
-        final String newQuery = parseSQLStatement(m_sqlStatement);
+        final BufferedDataTable inTable = (BufferedDataTable) inData[0];
+        final DatabasePortObject dbObject = (DatabasePortObject) inData[1];
+
+        DatabaseQueryConnectionSettings conn = dbObject
+                .getConnectionSettings(getCredentialsProvider());
+
+        final String newQuery = parseSQLStatement(conn.getQuery(),
+            inTable.getDataTableSpec());
 
         LOGGER.debug("SQL Statement: " + newQuery);
 
-        if(m_appendInputColumnsModel.getBooleanValue()) {
+        conn = createDBQueryConnection(dbObject.getSpec(), newQuery);
+        final DBReader reader = conn.getUtility().getReader(conn);
 
-        }
+        final BufferedDataTable outTable = reader.loopTable(exec,
+            getCredentialsProvider(), inTable, m_appendInputColumnsModel.getBooleanValue(),
+            m_includeEmptyResultsModel.getBooleanValue(), m_retainAllColumns.getBooleanValue(),
+            m_dataColumns.toArray(new String[m_dataColumns.size()])).getDataTable();
 
-        return new BufferedDataTable[]{(BufferedDataTable)inData[0]};
+        return new BufferedDataTable[] {outTable};
+
     }
 
     /**
@@ -105,29 +128,13 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
             throw new InvalidSettingsException("No column spec available.");
         }
 
-        validateColumns(inSpec, m_sqlStatement);
+        if(inSpecs[1] == null) {
+            throw new InvalidSettingsException("No valid database connection available.");
+        }
 
-//        final DatabasePortObjectSpec dbSpec = (DatabasePortObjectSpec) inSpecs[1];
-//        DatabaseQueryConnectionSettings conn = dbSpec.getConnectionSettings(getCredentialsProvider());
-//        String newQuery = parseSQLStatement(conn.getQuery());
-//
-//        LOGGER.debug("Original Query: " + newQuery);
-//
-//        conn = createDBQueryConnection(dbSpec, newQuery);
+        parseDataColumns(m_sqlStatement, inSpec);
 
-        return new DataTableSpec[1];
-
-
-
-
-
-
-
-//        DataTableSpec outSpec = null;
-//        if(m_retainAllColumns.getBooleanValue()){
-//            outSpec = (DataTableSpec) inSpecs[0];
-//        }
-
+        return new DataTableSpec[] {null};
 
     }
 
@@ -161,13 +168,51 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
         m_appendInputColumnsModel.validateSettings(settings);
         m_includeEmptyResultsModel.validateSettings(settings);
         m_retainAllColumns.validateSettings(settings);
-        final String sqlStatement = settings.getString(CFG_SQL_STATEMENT);
-        if(sqlStatement != null && !sqlStatement.contains(
-                DatabaseQueryConnectionSettings.TABLE_PLACEHOLDER)){
-            throw new InvalidSettingsException("Database table place holder ("
-                + DatabaseQueryConnectionSettings.TABLE_PLACEHOLDER
-                + ") must not be replaced.");
-        }
+//        final String sqlStatement = settings.getString(CFG_SQL_STATEMENT);
+//        if(sqlStatement != null && !sqlStatement.contains(
+//                DatabaseQueryConnectionSettings.TABLE_PLACEHOLDER)){
+//            throw new InvalidSettingsException("Database table place holder ("
+//                + DatabaseQueryConnectionSettings.TABLE_PLACEHOLDER
+//                + ") must not be replaced.");
+//        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public InputPortRole[] getInputPortRoles() {
+        return new InputPortRole[] {InputPortRole.NONDISTRIBUTED_STREAMABLE,
+            InputPortRole.NONDISTRIBUTED_NONSTREAMABLE};
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public OutputPortRole[] getOutputPortRoles() {
+        return new OutputPortRole[] {OutputPortRole.NONDISTRIBUTED};
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public StreamableOperator createStreamableOperator(
+            final PartitionInfo partitionInfo, final PortObjectSpec[] inSpecs)
+                    throws InvalidSettingsException {
+
+        return new StreamableOperator() {
+
+            @Override
+            public void runFinal(final PortInput[] inputs,
+                    final PortOutput[] outputs, final ExecutionContext exec)
+                            throws Exception {
+
+
+            }
+        };
+
     }
 
     /**
@@ -178,7 +223,7 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
     }
 
     static String getColumnPlaceHolder(final DataColumnSpec colSpec) {
-        return "${" + colSpec.getName() + "}$";
+        return "#{" + colSpec.getName() + "}#";
     }
 
     /**
@@ -187,14 +232,8 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
      * @param query the query used to replace the table placeholder
      * (the incoming query from the Database Connector)
      */
-    private String parseSQLStatement(final String query) {
-//        final StringBuilder builder = new StringBuilder();
-//        final String[] inQueris = query.split(DBReader.SQL_QUERY_SEPARATOR);
-//        String inSelect = inQueris[inQueris.length - 1];
-//        for(int i = 0; i < inQueris.length; i++) {
-//            builder.append(inQueris[i]);
-//            builder.append(DBReader.SQL_QUERY_SEPARATOR);
-//        }
+    private String parseSQLStatement(final String query, final DataTableSpec spec)
+            throws InvalidSettingsException{
 
         // Replace the "#table#" placeholder with the input query
         String resultQuery = m_sqlStatement.replaceAll
@@ -203,28 +242,24 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
         // Replace the flowVariable placeholder with the actual value
         resultQuery = FlowVariableResolver.parse(resultQuery, this);
 
-        // Replace the column placeholder with '?'
-        resultQuery = resultQuery.replaceAll("\\$\\{(.*?)\\}\\$", "?");
+        // Parse the data column and replace with "?"
+        resultQuery = parseDataColumns(resultQuery, spec);
 
         return resultQuery;
 
-//        builder.append(resultQuery);
-//
-//        return builder.toString();
-
     }
 
-    private void validateColumns(final DataTableSpec spec, final String query)
-            throws InvalidSettingsException {
-        final Pattern pattern = Pattern.compile("\\$\\{(.*?)\\}\\$");
+    private String parseDataColumns(final String query, final DataTableSpec spec)
+            throws InvalidSettingsException{
+        m_dataColumns.clear();
+        final Pattern pattern = Pattern.compile("#{1}\\{(.*?)\\}#{1}");
         final Matcher matcher = pattern.matcher(query);
         while(matcher.find()) {
             final String col = matcher.group(1);
-            if(!spec.containsName(col)) {
-                throw new InvalidSettingsException("Cannot find column " + col
-                    + " in the input table.");
-            }
+            m_dataColumns.add(col);
         }
+
+        return matcher.replaceAll("?");
     }
 
 }
