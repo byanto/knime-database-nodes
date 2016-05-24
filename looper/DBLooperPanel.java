@@ -115,6 +115,7 @@ public class DBLooperPanel extends JPanel {
     private final SettingsModelBoolean m_appendInputColsModel = DBLooperNodeModel.createAppendInputColsModel();
     private final SettingsModelBoolean m_includeEmptyResultsModel = DBLooperNodeModel.createIncludeEmptyResultsModel();
     private final SettingsModelBoolean m_retainAllColumnsModel = DBLooperNodeModel.createRetainAllColumnsModel();
+    private final SettingsModelBoolean m_failIfExceptionModel = DBLooperNodeModel.createFailIfExceptionModel();
 
     /**
      *
@@ -230,17 +231,21 @@ public class DBLooperPanel extends JPanel {
         panel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLoweredBevelBorder(),
             BorderFactory.createTitledBorder("Options")));
-//        final Box box = Box.createVerticalBox();
-        final Box box = Box.createHorizontalBox();
-        box.add(new DialogComponentBoolean(m_appendInputColsModel,
+        final Box optionsBox = Box.createVerticalBox();
+        final Box inputColumnsBox = Box.createHorizontalBox();
+        inputColumnsBox.add(new DialogComponentBoolean(m_appendInputColsModel,
             "Append input columns")
             .getComponentPanel());
-        box.add(new DialogComponentBoolean(m_includeEmptyResultsModel,
+        inputColumnsBox.add(new DialogComponentBoolean(m_includeEmptyResultsModel,
             "Include empty results")
             .getComponentPanel());
-        box.add(new DialogComponentBoolean(m_retainAllColumnsModel,
+        inputColumnsBox.add(new DialogComponentBoolean(m_retainAllColumnsModel,
             "Retain all columns").getComponentPanel());
-        panel.add(box, BorderLayout.CENTER);
+
+        optionsBox.add(new DialogComponentBoolean(m_failIfExceptionModel,
+                "Fail if exception").getComponentPanel());
+        optionsBox.add(inputColumnsBox);
+        panel.add(optionsBox, BorderLayout.CENTER);
         m_appendInputColsModel.addChangeListener(
             l -> {
                 m_includeEmptyResultsModel.setEnabled(m_appendInputColsModel.getBooleanValue());
@@ -269,6 +274,7 @@ public class DBLooperPanel extends JPanel {
             m_appendInputColsModel.loadSettingsFrom(settings);
             m_includeEmptyResultsModel.loadSettingsFrom(settings);
             m_retainAllColumnsModel.loadSettingsFrom(settings);
+            m_failIfExceptionModel.loadSettingsFrom(settings);
             m_editor.setText(settings.getString(
                 DBLooperNodeModel.CFG_SQL_STATEMENT,
                 DBLooperNodeModel.getDefaultSQLStatement()));
@@ -276,6 +282,7 @@ public class DBLooperPanel extends JPanel {
             m_appendInputColsModel.setBooleanValue(DBLooperNodeModel.DEF_APPEND_INPUT_COL);
             m_includeEmptyResultsModel.setBooleanValue(DBLooperNodeModel.DEF_INCLUDE_EMPTY_RESULTS);
             m_retainAllColumnsModel.setBooleanValue(DBLooperNodeModel.DEF_RETAIN_ALL_COLUMNS);
+            m_failIfExceptionModel.setBooleanValue(DBLooperNodeModel.DEF_FAIL_IF_EXCEPTION);
         }
 
         updateKnimeColumns((DataTableSpec) specs[0]);
@@ -289,6 +296,7 @@ public class DBLooperPanel extends JPanel {
         m_appendInputColsModel.saveSettingsTo(settings);
         m_includeEmptyResultsModel.saveSettingsTo(settings);
         m_retainAllColumnsModel.saveSettingsTo(settings);
+        m_failIfExceptionModel.saveSettingsTo(settings);
         settings.addString(DBLooperNodeModel.CFG_SQL_STATEMENT, m_editor.getText());
     }
 
