@@ -66,8 +66,9 @@ import javax.swing.JPopupMenu;
 import javax.swing.SwingUtilities;
 import javax.swing.table.TableColumnModel;
 
+import org.apache.commons.lang.StringUtils;
 import org.knime.core.data.def.StringCell;
-import org.knime.core.node.port.database.writer.DBColumn;
+import org.knime.core.node.port.database.tablecreator.DBColumn;
 
 /**
  * Panel used to define column settings for table creator
@@ -125,7 +126,11 @@ public class ColumnsPanel extends AbstractTablePanel {
                         break;
                     case ColumnElement.COLUMN_TYPE_IDX:
                         final String val = aValue.toString();
-                        elem.setType(val);
+                        if(StringUtils.isBlank(val)) {
+                            elem.setType(DBUtil.getDefaultSQLType(StringCell.TYPE));
+                        } else {
+                            elem.setType(val);
+                        }
                         break;
                     case ColumnElement.NOT_NULL_IDX:
                         elem.setNotNull(((Boolean)aValue).booleanValue());

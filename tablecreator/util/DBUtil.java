@@ -48,16 +48,21 @@
  */
 package org.knime.base.node.io.database.tablecreator.util;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.knime.core.data.BooleanValue;
 import org.knime.core.data.DataType;
+import org.knime.core.data.DoubleValue;
+import org.knime.core.data.IntValue;
 import org.knime.core.data.blob.BinaryObjectDataCell;
+import org.knime.core.data.blob.BinaryObjectDataValue;
 import org.knime.core.data.date.DateAndTimeCell;
+import org.knime.core.data.date.DateAndTimeValue;
 import org.knime.core.data.def.BooleanCell;
 import org.knime.core.data.def.DoubleCell;
 import org.knime.core.data.def.IntCell;
@@ -68,56 +73,24 @@ import org.knime.core.data.def.StringCell;
  * @author Budi Yanto, KNIME.com
  */
 public class DBUtil {
-    static final String SQLITE = "sqlite";
 
-    static final String POSTGRESQL = "postgresql";
-
-    static final String MYSQL = "mysql";
-
-    // Default SQL Types
-    /** Default SQL-type for Strings. */
+    /** Default SQL-Type for String */
     static final String SQL_TYPE_STRING = "varchar(255)";
 
-    /** Default SQL-type for Booleans. */
+    /** Default SQL-Type for Boolean */
     static final String SQL_TYPE_BOOLEAN = "boolean";
 
-    /** Default SQL-type for Integers. */
+    /** Default SQL-Type for Integer */
     static final String SQL_TYPE_INTEGER = "integer";
 
-    /** Default SQL-type for Doubles. */
+    /** Default SQL-Type for Double */
     static final String SQL_TYPE_DOUBLE = "numeric(30,10)";
 
-    /** Default SQL-type for Timestamps. */
+    /** Default SQL-Type for Timestamps */
     static final String SQL_TYPE_DATEANDTIME = "timestamp";
 
-    /** Default SQL-type for Date. */
+    /** Default SQL-Type for Binary */
     static final String SQL_TYPE_BLOB = "blob";
-
-    static String[] getDatabaseTypes(final String db) {
-        switch (db.toLowerCase()) {
-            case SQLITE:
-                return getSQLiteTypes();
-            case POSTGRESQL:
-                return getPostgreSQLTypes();
-            case MYSQL:
-                return getMySQLTypes();
-            default:
-                break;
-        }
-        return null;
-    }
-
-    static private String[] getSQLiteTypes() {
-        return new String[]{"DOUBLE SQLITE", "VARCHAR SQLITE", "INTEGER SQLITE"};
-    }
-
-    static private String[] getPostgreSQLTypes() {
-        return new String[]{"DOUBLE POSTGRESQL", "VARCHAR POSTGRESQL", "INTEGER POSTGRESQL"};
-    }
-
-    static private String[] getMySQLTypes() {
-        return new String[]{"DOUBLE MYSQL", "VARCHAR MYSQL", "INTEGER MYSQL"};
-    }
 
     static Map<DataType, Set<String>> getSqlTypesMap() {
         Map<DataType, Set<String>> map = new LinkedHashMap<DataType, Set<String>>();
@@ -163,26 +136,26 @@ public class DBUtil {
     }
 
     static List<String> getSqlTypes() {
-        List<String> types = new ArrayList<String>();
-        types.add(SQL_TYPE_BOOLEAN);
-        types.add(SQL_TYPE_INTEGER);
-        types.add(SQL_TYPE_DOUBLE);
-        types.add(SQL_TYPE_DATEANDTIME);
-        types.add(SQL_TYPE_BLOB);
-        types.add(SQL_TYPE_STRING);
-        return types;
+        return Arrays.asList(new String[] {
+            SQL_TYPE_BOOLEAN,
+            SQL_TYPE_INTEGER,
+            SQL_TYPE_DOUBLE,
+            SQL_TYPE_DATEANDTIME,
+            SQL_TYPE_BLOB,
+            SQL_TYPE_STRING
+        });
     }
 
     static String getDefaultSQLType(final DataType knimeType) {
-        if (knimeType.equals(BooleanCell.TYPE)) {
+        if (knimeType.isCompatible(BooleanValue.class)) {
             return SQL_TYPE_BOOLEAN;
-        } else if (knimeType.equals(IntCell.TYPE)) {
+        } else if (knimeType.isCompatible(IntValue.class)) {
             return SQL_TYPE_INTEGER;
-        } else if (knimeType.equals(DoubleCell.TYPE)) {
+        } else if (knimeType.isCompatible(DoubleValue.class)) {
             return SQL_TYPE_DOUBLE;
-        } else if (knimeType.equals(DateAndTimeCell.TYPE)) {
+        } else if (knimeType.isCompatible(DateAndTimeValue.class)) {
             return SQL_TYPE_DATEANDTIME;
-        } else if (knimeType.equals(BinaryObjectDataCell.TYPE)) {
+        } else if (knimeType.isCompatible(BinaryObjectDataValue.class)) {
             return SQL_TYPE_BLOB;
         } else {
             return SQL_TYPE_STRING;

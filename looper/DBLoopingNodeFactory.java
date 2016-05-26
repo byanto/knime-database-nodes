@@ -10,15 +10,15 @@ import org.knime.core.node.NodeView;
  *
  * @author Budi Yanto, KNIME.com
  */
-public class DBLooperNodeFactory
-        extends NodeFactory<DBLooperNodeModel> {
+public class DBLoopingNodeFactory
+        extends NodeFactory<DBLoopingNodeModel> {
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public DBLooperNodeModel createNodeModel() {
-        return new DBLooperNodeModel();
+    public DBLoopingNodeModel createNodeModel() {
+        return new DBLoopingNodeModel();
     }
 
     /**
@@ -33,9 +33,9 @@ public class DBLooperNodeFactory
      * {@inheritDoc}
      */
     @Override
-    public NodeView<DBLooperNodeModel> createNodeView(final int viewIndex,
-            final DBLooperNodeModel nodeModel) {
-        return new DBLooperNodeView(nodeModel);
+    public NodeView<DBLoopingNodeModel> createNodeView(final int viewIndex,
+            final DBLoopingNodeModel nodeModel) {
+        return new DBLoopingNodeView(nodeModel);
     }
 
     /**
@@ -51,7 +51,7 @@ public class DBLooperNodeFactory
      */
     @Override
     public NodeDialogPane createNodeDialogPane() {
-        return new DBLooperNodeDialog();
+        return new DBLoopingNodeDialog();
     }
 
 }

@@ -82,7 +82,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.border.TitledBorder;
 import javax.swing.table.TableColumnModel;
 
-import org.knime.core.node.port.database.writer.DBColumn;
+import org.knime.core.node.port.database.tablecreator.DBColumn;
 
 /**
  * Panel used to define key settings for table creator

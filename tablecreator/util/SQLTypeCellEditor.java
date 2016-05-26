@@ -65,6 +65,7 @@ import javax.swing.JTable;
 import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 
+import org.apache.commons.lang.StringUtils;
 import org.knime.core.data.DataType;
 import org.knime.core.node.util.StringHistory;
 
@@ -243,6 +244,18 @@ class SQLTypeCellEditor extends DefaultCellEditor {
         return getElementAt(DEFAULT_MODEL_KEY, index);
     }
 
+    String getSelectedItem() {
+        validateMethod();
+        return getSelectedItem(DEFAULT_MODEL_KEY);
+    }
+
+    String getSelectedItem(final String modelKey) {
+        if(m_models.get(modelKey) == null) {
+            return null;
+        }
+        return m_models.get(modelKey).getSelectedItem().toString();
+    }
+
     /**
      * Returns the number of elements in the list retrieved using the given key
      *
@@ -371,7 +384,7 @@ class SQLTypeCellEditor extends DefaultCellEditor {
          */
         @Override
         public void insertElementAt(String anObject, int index) {
-            if (anObject != null && !anObject.isEmpty()) {
+            if (anObject != null && !StringUtils.isBlank(anObject)) {
                 anObject = anObject.toLowerCase();
                 if (getIndexOf(anObject) < 0) { // Object doesn't exist in the list
                     // Determine where to insert element to keep model in sorted order

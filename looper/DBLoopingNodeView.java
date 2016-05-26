@@ -8,14 +8,14 @@ import org.knime.core.node.NodeView;
  *
  * @author Budi Yanto, KNIME.com
  */
-public class DBLooperNodeView extends NodeView<DBLooperNodeModel> {
+public class DBLoopingNodeView extends NodeView<DBLoopingNodeModel> {
 
     /**
      * Creates a new view.
      * 
-     * @param nodeModel The model (class: {@link DBLooperNodeModel})
+     * @param nodeModel The model (class: {@link DBLoopingNodeModel})
      */
-    protected DBLooperNodeView(final DBLooperNodeModel nodeModel) {
+    protected DBLoopingNodeView(final DBLoopingNodeModel nodeModel) {
         super(nodeModel);
         // TODO: generated method stub
     }

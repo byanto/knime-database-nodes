@@ -51,7 +51,7 @@ package org.knime.base.node.io.database.tablecreator.util;
 import org.knime.core.node.InvalidSettingsException;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
-import org.knime.core.node.port.database.writer.DBColumn;
+import org.knime.core.node.port.database.tablecreator.DBColumn;
 
 /**
  * Column row element of the ColumnsPanel

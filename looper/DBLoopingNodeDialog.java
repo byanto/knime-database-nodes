@@ -20,14 +20,14 @@ import org.knime.core.node.port.PortObjectSpec;
  *
  * @author Budi Yanto, KNIME.com
  */
-public class DBLooperNodeDialog extends NodeDialogPane {
+public class DBLoopingNodeDialog extends NodeDialogPane {
 
-    private DBLooperPanel m_panel = new DBLooperPanel();
+    private DBLoopingPanel m_panel = new DBLoopingPanel();
 
     /**
      * New pane for configuring the DBLooper node.
      */
-    protected DBLooperNodeDialog() {
+    protected DBLoopingNodeDialog() {
         addTab("DB Looper", m_panel);
     }
 

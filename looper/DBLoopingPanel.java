@@ -50,6 +50,8 @@ package org.knime.base.node.io.database.looper;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Collection;
@@ -74,7 +76,6 @@ import org.knime.base.util.flowvariable.FlowVariableResolver;
 import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.InvalidSettingsException;
-import org.knime.core.node.NodeLogger;
 import org.knime.core.node.NodeSettingsRO;
 import org.knime.core.node.NodeSettingsWO;
 import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
@@ -89,14 +90,14 @@ import org.knime.core.node.workflow.FlowVariable;
  *
  * @author Budi Yanto, KNIME.com
  */
-public class DBLooperPanel extends JPanel {
+public class DBLoopingPanel extends JPanel {
 
     /**
      * Automatically genearted Serial Version UID
      */
     private static final long serialVersionUID = 6975068112489198240L;
 
-    private static final NodeLogger LOGGER = NodeLogger.getLogger(DBLooperPanel.class);
+//    private static final NodeLogger LOGGER = NodeLogger.getLogger(DBLooperPanel.class);
 
     private final DefaultListModel<DataColumnSpec> m_knimeColumnsModel = new DefaultListModel<DataColumnSpec>();
 
@@ -112,15 +113,15 @@ public class DBLooperPanel extends JPanel {
 
     private final RSyntaxTextArea m_editor = createEditor();
 
-    private final SettingsModelBoolean m_appendInputColsModel = DBLooperNodeModel.createAppendInputColsModel();
-    private final SettingsModelBoolean m_includeEmptyResultsModel = DBLooperNodeModel.createIncludeEmptyResultsModel();
-    private final SettingsModelBoolean m_retainAllColumnsModel = DBLooperNodeModel.createRetainAllColumnsModel();
-    private final SettingsModelBoolean m_failIfExceptionModel = DBLooperNodeModel.createFailIfExceptionModel();
+    private final SettingsModelBoolean m_appendInputColsModel = DBLoopingNodeModel.createAppendInputColsModel();
+    private final SettingsModelBoolean m_includeEmptyResultsModel = DBLoopingNodeModel.createIncludeEmptyResultsModel();
+    private final SettingsModelBoolean m_retainAllColumnsModel = DBLoopingNodeModel.createRetainAllColumnsModel();
+    private final SettingsModelBoolean m_failIfExceptionModel = DBLoopingNodeModel.createFailIfExceptionModel();
 
     /**
      *
      */
-    DBLooperPanel() {
+    DBLoopingPanel() {
         setLayout(new BorderLayout());
         final JSplitPane mainSplitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         mainSplitPane.setLeftComponent(createColumnsAndVariablesPanel());
@@ -134,49 +135,56 @@ public class DBLooperPanel extends JPanel {
 
         /* Create database column list */
         final JPanel dbColumnsPanel = new JPanel(new BorderLayout());
-        final JLabel dbColumnsLabel = new JLabel("Database Columns");
+        final JLabel dbColumnsLabel = new JLabel("Database Column List");
         dbColumnsLabel.setBorder(new EmptyBorder(5, 5, 5, 5));
         dbColumnsPanel.add(dbColumnsLabel, BorderLayout.NORTH);
         dbColumnsPanel.add(new JScrollPane(m_dbColumnsList), BorderLayout.CENTER);
         m_dbColumnsList.setCellRenderer(new DataColumnSpecListCellRenderer());
         m_dbColumnsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        m_dbColumnsList.addKeyListener(new KeyAdapter() {
+            /** {@inheritDoc} */
+            @Override
+            public void keyTyped(final KeyEvent evt) {
+                if(evt.getKeyChar() == KeyEvent.VK_ENTER) {
+                    onSelectionInDatabaseList();
+                }
+            }
+
+        });
         m_dbColumnsList.addMouseListener(new MouseAdapter() {
-            /**
-             * {@inheritDoc}
-             */
+            /** {@inheritDoc} */
             @Override
             public void mouseClicked(final MouseEvent evt) {
                 if(evt.getClickCount() == 2){
-                    final int index = m_dbColumnsList.locationToIndex(
-                        evt.getPoint());
-                    final DataColumnSpec colSpec = m_dbColumnsModel.get(index);
-                    m_editor.replaceSelection(colSpec.getName());
-                    m_editor.requestFocus();
+                    onSelectionInDatabaseList();
                 }
             }
         });
 
         /* Create Knime column list */
         final JPanel knimeColumnsPanel = new JPanel(new BorderLayout());
-        final JLabel knimeColumnsLabel = new JLabel("Input Columns");
+        final JLabel knimeColumnsLabel = new JLabel("Column List");
         knimeColumnsLabel.setBorder(new EmptyBorder(5, 5, 5, 5));
         knimeColumnsPanel.add(knimeColumnsLabel, BorderLayout.NORTH);
         knimeColumnsPanel.add(new JScrollPane(m_knimeColumnsList), BorderLayout.CENTER);
         m_knimeColumnsList.setCellRenderer(new DataColumnSpecListCellRenderer());
         m_knimeColumnsList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        m_knimeColumnsList.addKeyListener(new KeyAdapter() {
+            /** {@inheritDoc} */
+            @Override
+            public void keyTyped(final KeyEvent evt) {
+                if(evt.getKeyChar() == KeyEvent.VK_ENTER) {
+                    onSelectionInColumnList();
+                }
+            }
+        });
+
         m_knimeColumnsList.addMouseListener(new MouseAdapter() {
-            /**
-             * {@inheritDoc}
-             */
+            /** {@inheritDoc} */
             @Override
             public void mouseClicked(final MouseEvent evt) {
                 if(evt.getClickCount() == 2){
-                    final int index = m_knimeColumnsList.locationToIndex(
-                        evt.getPoint());
-                    final DataColumnSpec colSpec = m_knimeColumnsModel.get(index);
-                    m_editor.replaceSelection(DBLooperNodeModel
-                        .getColumnPlaceHolder(colSpec));
-                    m_editor.requestFocus();
+                    onSelectionInColumnList();
                 }
             }
         });
@@ -191,12 +199,22 @@ public class DBLooperPanel extends JPanel {
 
         /* Create flow variables list*/
         final JPanel variablesPanel = new JPanel(new BorderLayout());
-        final JLabel variablesLabel = new JLabel("Flow variables");
+        final JLabel variablesLabel = new JLabel("Flow Variable List");
         variablesLabel.setBorder(new EmptyBorder(5, 5, 5, 5));
         variablesPanel.add(variablesLabel, BorderLayout.NORTH);
         variablesPanel.add(new JScrollPane(m_flowVariablesList), BorderLayout.CENTER);
         m_flowVariablesList.setCellRenderer(new FlowVariableListCellRenderer());
         m_flowVariablesList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        m_flowVariablesList.addKeyListener(new KeyAdapter() {
+            /** {@inheritDoc} */
+            @Override
+            public void keyTyped(final KeyEvent evt) {
+                if(evt.getKeyChar() == KeyEvent.VK_ENTER) {
+                    onSelectionInFlowVariableList();
+                }
+            }
+        });
+
         m_flowVariablesList.addMouseListener(new MouseAdapter() {
             /**
              * {@inheritDoc}
@@ -204,12 +222,7 @@ public class DBLooperPanel extends JPanel {
             @Override
             public void mouseClicked(final MouseEvent evt) {
                 if(evt.getClickCount() == 2){
-                    final int index = m_flowVariablesList.locationToIndex(
-                        evt.getPoint());
-                    final FlowVariable flowVar = m_flowVariablesModel.get(index);
-                    m_editor.replaceSelection(FlowVariableResolver
-                        .getPlaceHolderForVariable(flowVar));
-                    m_editor.requestFocus();
+                    onSelectionInFlowVariableList();
                 }
             }
         });
@@ -224,6 +237,38 @@ public class DBLooperPanel extends JPanel {
         columnsVariableSplitPane.setMinimumSize(new Dimension(200, 600));
 
         return columnsVariableSplitPane;
+    }
+
+    private void onSelectionInFlowVariableList() {
+        final FlowVariable selected = m_flowVariablesList.getSelectedValue();
+        if(selected != null) {
+            m_editor.replaceSelection(FlowVariableResolver
+                .getPlaceHolderForVariable(selected));
+            m_flowVariablesList.clearSelection();
+            m_editor.requestFocus();
+        }
+    }
+
+    private void onSelectionInColumnList() {
+        final DataColumnSpec selected = m_knimeColumnsList.getSelectedValue();
+        if(selected != null) {
+//            String name = selected.getName().replace("$", "\\$");
+//            name = "$" + name + "$";
+            String name = DBLoopingNodeModel.getColumnPlaceHolder(selected);
+
+            m_editor.replaceSelection(name);
+            m_knimeColumnsList.clearSelection();
+            m_editor.requestFocus();
+        }
+    }
+
+    private void onSelectionInDatabaseList() {
+        final DataColumnSpec selected = m_dbColumnsList.getSelectedValue();
+        if(selected != null) {
+            m_editor.replaceSelection(selected.getName());
+            m_dbColumnsList.clearSelection();
+            m_editor.requestFocus();
+        }
     }
 
     private JPanel createOptionsPanel() {
@@ -243,7 +288,7 @@ public class DBLooperPanel extends JPanel {
             "Retain all columns").getComponentPanel());
 
         optionsBox.add(new DialogComponentBoolean(m_failIfExceptionModel,
-                "Fail if exception").getComponentPanel());
+                "Fail on error").getComponentPanel());
         optionsBox.add(inputColumnsBox);
         panel.add(optionsBox, BorderLayout.CENTER);
         m_appendInputColsModel.addChangeListener(
@@ -276,13 +321,13 @@ public class DBLooperPanel extends JPanel {
             m_retainAllColumnsModel.loadSettingsFrom(settings);
             m_failIfExceptionModel.loadSettingsFrom(settings);
             m_editor.setText(settings.getString(
-                DBLooperNodeModel.CFG_SQL_STATEMENT,
-                DBLooperNodeModel.getDefaultSQLStatement()));
+                DBLoopingNodeModel.CFG_SQL_STATEMENT,
+                DBLoopingNodeModel.getDefaultSQLStatement()));
         } catch(InvalidSettingsException ex){
-            m_appendInputColsModel.setBooleanValue(DBLooperNodeModel.DEF_APPEND_INPUT_COL);
-            m_includeEmptyResultsModel.setBooleanValue(DBLooperNodeModel.DEF_INCLUDE_EMPTY_RESULTS);
-            m_retainAllColumnsModel.setBooleanValue(DBLooperNodeModel.DEF_RETAIN_ALL_COLUMNS);
-            m_failIfExceptionModel.setBooleanValue(DBLooperNodeModel.DEF_FAIL_IF_EXCEPTION);
+            m_appendInputColsModel.setBooleanValue(DBLoopingNodeModel.DEF_APPEND_INPUT_COL);
+            m_includeEmptyResultsModel.setBooleanValue(DBLoopingNodeModel.DEF_INCLUDE_EMPTY_RESULTS);
+            m_retainAllColumnsModel.setBooleanValue(DBLoopingNodeModel.DEF_RETAIN_ALL_COLUMNS);
+            m_failIfExceptionModel.setBooleanValue(DBLoopingNodeModel.DEF_FAIL_IF_EXCEPTION);
         }
 
         updateKnimeColumns((DataTableSpec) specs[0]);
@@ -297,7 +342,7 @@ public class DBLooperPanel extends JPanel {
         m_includeEmptyResultsModel.saveSettingsTo(settings);
         m_retainAllColumnsModel.saveSettingsTo(settings);
         m_failIfExceptionModel.saveSettingsTo(settings);
-        settings.addString(DBLooperNodeModel.CFG_SQL_STATEMENT, m_editor.getText());
+        settings.addString(DBLoopingNodeModel.CFG_SQL_STATEMENT, m_editor.getText());
     }
 
     void updateFlowVariables(final FlowVariable[] flowVariables) {

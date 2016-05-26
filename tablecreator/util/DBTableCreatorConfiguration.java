@@ -70,8 +70,8 @@ import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
 import org.knime.core.node.defaultnodesettings.SettingsModelString;
 import org.knime.core.node.port.PortObjectSpec;
 import org.knime.core.node.port.database.DatabaseConnectionPortObjectSpec;
-import org.knime.core.node.port.database.writer.DBColumn;
-import org.knime.core.node.port.database.writer.DBKey;
+import org.knime.core.node.port.database.tablecreator.DBColumn;
+import org.knime.core.node.port.database.tablecreator.DBKey;
 
 /**
  * A configuration class to store the settings of DBTable
@@ -136,6 +136,10 @@ public class DBTableCreatorConfiguration {
     private DataTableSpec m_tableSpec;
 
     private boolean m_isTableSpecChanged = false;
+
+    private boolean m_settingsChangedInDialog = false;
+
+    private DataTableSpec m_tempSpec;
 
     /**
      * Creates a new instance of DBTableCreatorConfiguration
@@ -350,6 +354,10 @@ public class DBTableCreatorConfiguration {
         return m_isTableSpecChanged;
     }
 
+    public void setTableSpec2(final DataTableSpec spec) {
+        m_tableSpec = spec;
+    }
+
     /**
      * Returns true if the table spec has changed
      *
@@ -357,6 +365,14 @@ public class DBTableCreatorConfiguration {
      */
     public boolean isTableSpecChanged() {
         return m_isTableSpecChanged;
+    }
+
+    public boolean isNewTableSpec(final DataTableSpec spec) {
+        if((spec == null) || (m_tableSpec != null && m_tableSpec.equalStructure(spec))) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -376,6 +392,8 @@ public class DBTableCreatorConfiguration {
         loadSettingsForRowElements(CFG_NAME_BASED_KEYS, settings);
         loadSettingsForRowElements(CFG_COLUMNS_SETTINGS, settings);
         loadSettingsForRowElements(CFG_KEYS_SETTINGS, settings);
+
+//        m_settingsChangedInDialog = true;
     }
 
     /**
@@ -406,6 +424,45 @@ public class DBTableCreatorConfiguration {
             loadSettingsForRowElements(CFG_COLUMNS_SETTINGS, settings);
             loadSettingsForRowElements(CFG_KEYS_SETTINGS, settings);
         }
+    }
+
+    /**
+     * Load settings for NodeDialog
+     *
+     * @param settings NodeSettingsRO instance to load from
+     * @param specs PortObjectSpec array to load from
+     * @throws InvalidSettingsException
+     */
+    public void loadSettingsForDialog2(final NodeSettingsRO settings, final PortObjectSpec[] specs)
+        throws InvalidSettingsException {
+        if (settings == null) {
+            throw new IllegalArgumentException("settings must not be null");
+        }
+
+        loadSettingsForSettingsModel(settings);
+        loadSettingsForRowElements(CFG_NAME_BASED_TYPE_MAPPING, settings);
+        loadSettingsForRowElements(CFG_KNIME_BASED_TYPE_MAPPING, settings);
+        loadSettingsForRowElements(CFG_NAME_BASED_KEYS, settings);
+
+        final String dbIdentifier = ((DatabaseConnectionPortObjectSpec)specs[0]).getDatabaseIdentifier();
+        loadSettingsForSqlEditor(dbIdentifier);
+
+        DataTableSpec spec = (DataTableSpec)specs[1];
+
+        if(isNewTableSpec(spec)) {
+            loadSettingsFromTableSpec(spec);
+            m_tempSpec = spec;
+        } else {
+            loadSettingsForRowElements(CFG_COLUMNS_SETTINGS, settings);
+            loadSettingsForRowElements(CFG_KEYS_SETTINGS, settings);
+        }
+
+//        if (setTableSpec(spec)) {
+//            loadSettingsFromTableSpec(spec);
+//        } else {
+//            loadSettingsForRowElements(CFG_COLUMNS_SETTINGS, settings);
+//            loadSettingsForRowElements(CFG_KEYS_SETTINGS, settings);
+//        }
     }
 
     /**
@@ -532,6 +589,11 @@ public class DBTableCreatorConfiguration {
     public void saveSettingsForDialog(final NodeSettingsWO settings) throws InvalidSettingsException {
         saveSettingsForModel(settings);
         saveSettingsForSqlEditor();
+        if(isNewTableSpec(m_tempSpec)) {
+            m_tableSpec = m_tempSpec;
+            m_tempSpec = null;
+            System.out.println(m_tableSpec.getNumColumns());
+        }
     }
 
     /**

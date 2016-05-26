@@ -1,10 +1,13 @@
 package org.knime.base.node.io.database.looper;
 
+import java.io.StreamTokenizer;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang.StringUtils;
 import org.knime.base.node.io.database.DBNodeModel;
 import org.knime.base.util.flowvariable.FlowVariableProvider;
 import org.knime.base.util.flowvariable.FlowVariableResolver;
@@ -32,9 +35,9 @@ import org.knime.core.node.streamable.DataTableRowInput;
  *
  * @author Budi Yanto, KNIME.com
  */
-public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvider {
+public class DBLoopingNodeModel extends DBNodeModel implements FlowVariableProvider {
 
-    private static final NodeLogger LOGGER = NodeLogger.getLogger(DBLooperNodeModel.class);
+    private static final NodeLogger LOGGER = NodeLogger.getLogger(DBLoopingNodeModel.class);
 
     static final boolean DEF_APPEND_INPUT_COL = true;
 
@@ -79,7 +82,7 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
     /**
      * Constructor for the node model.
      */
-    protected DBLooperNodeModel() {
+    protected DBLoopingNodeModel() {
         super(new PortType[]{BufferedDataTable.TYPE, DatabasePortObject.TYPE},
             new PortType[]{BufferedDataTable.TYPE, BufferedDataTable.TYPE});
     }
@@ -95,7 +98,7 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
 
         DatabaseQueryConnectionSettings conn = dbObject.getConnectionSettings(getCredentialsProvider());
 
-        final String newQuery = parseSQLStatement(conn.getQuery());
+        final String newQuery = parseSQLStatement(inTable.getDataTableSpec(), conn.getQuery());
 
         LOGGER.debug("SQL Statement: " + newQuery);
 
@@ -105,15 +108,17 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
         final DataTableRowInput data = new DataTableRowInput(inTable);
 
         final BufferedDataTable outTable = looper
-            .loopTable(exec, getCredentialsProvider(), data, inTable.size(), m_failIfExceptionModel.getBooleanValue(),
-                m_appendInputColumnsModel.getBooleanValue(), m_includeEmptyResultsModel.getBooleanValue(),
-                m_retainAllColumnsModel.getBooleanValue(), m_dataColumns.toArray(new String[m_dataColumns.size()]))
-            .getDataTable();
+                .loopTable(exec, getCredentialsProvider(), data, inTable.size(),
+                    m_failIfExceptionModel.getBooleanValue(),
+                    m_appendInputColumnsModel.getBooleanValue(),
+                    m_includeEmptyResultsModel.getBooleanValue(),
+                    m_retainAllColumnsModel.getBooleanValue(),
+                    m_dataColumns.toArray(new String[m_dataColumns.size()]))
+                    .getDataTable();
 
         final BufferedDataTable errorTable = looper.getErrorDataTable();
 
         return new BufferedDataTable[]{outTable, errorTable};
-
     }
 
     /**
@@ -139,7 +144,7 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
             throw new InvalidSettingsException("No valid database connection available.");
         }
 
-        parseDataColumns(m_sqlStatement);
+        parseDataColumns(inSpec, m_sqlStatement);
 
         return new DataTableSpec[]{null};
 
@@ -178,13 +183,9 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
         m_includeEmptyResultsModel.validateSettings(settings);
         m_retainAllColumnsModel.validateSettings(settings);
         m_failIfExceptionModel.validateSettings(settings);
-        //        final String sqlStatement = settings.getString(CFG_SQL_STATEMENT);
-        //        if(sqlStatement != null && !sqlStatement.contains(
-        //                DatabaseQueryConnectionSettings.TABLE_PLACEHOLDER)){
-        //            throw new InvalidSettingsException("Database table place holder ("
-        //                + DatabaseQueryConnectionSettings.TABLE_PLACEHOLDER
-        //                + ") must not be replaced.");
-        //        }
+        if(StringUtils.isBlank(settings.getString(CFG_SQL_STATEMENT))){
+            throw new InvalidSettingsException("SQL Statement cannot be empty.");
+        }
     }
 
     /**
@@ -203,7 +204,8 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
      *
      * @param query the query used to replace the table placeholder (the incoming query from the Database Connector)
      */
-    private String parseSQLStatement(final String query) throws InvalidSettingsException {
+    private String parseSQLStatement(final DataTableSpec inSpec,
+            final String query) throws InvalidSettingsException {
 
         // Replace the "#table#" placeholder with the input query
         String resultQuery =
@@ -213,22 +215,72 @@ public class DBLooperNodeModel extends DBNodeModel implements FlowVariableProvid
         resultQuery = FlowVariableResolver.parse(resultQuery, this);
 
         // Parse the data column and replace with "?"
-        resultQuery = parseDataColumns(resultQuery);
+        resultQuery = parseDataColumns(inSpec, resultQuery);
 
         return resultQuery;
 
     }
 
-    private String parseDataColumns(final String query) throws InvalidSettingsException {
+    private String parseData(final String query) {
+        final StreamTokenizer t = new StreamTokenizer(new StringReader(query));
+
+
+
+        return "";
+    }
+
+    private String parseDataColumns(final DataTableSpec inSpec, final String query) throws InvalidSettingsException {
         m_dataColumns.clear();
+//        String command = new String(query);
+//        int currentIdx = 0;
+//        boolean foundStartIdx = false;
+//        do {
+//            int idx = command.indexOf("$", currentIdx);
+//            if(isValidIdx(command, idx)) {
+//                currentIdx = idx;
+//                foundStartIdx = true;
+//            }
+//            idx = command.indexOf("$", currentIdx);
+//            int endIdx = -1;
+//            if(isValidIdx(command, idx)) {
+//                endIdx = idx;
+//            }
+//
+//            String var = null;
+//            if(endIdx > -1) {
+//                var = command.substring(currentIdx + 1, endIdx);
+//            }
+//
+//            if(var != null) {
+//                m_dataColumns.add(var);
+//                command = command.replace("$" + var + "$", var);
+//            }
+//
+//
+//        } while(true);
+
+
+
         final Pattern pattern = Pattern.compile("#{1}\\{(.*?)\\}#{1}");
         final Matcher matcher = pattern.matcher(query);
         while (matcher.find()) {
             final String col = matcher.group(1);
-            m_dataColumns.add(col);
+            if (inSpec.containsName(col)){
+                m_dataColumns.add(col);
+            } else {
+                throw new InvalidSettingsException("Column " + col
+                    + " doesn't exist in the input table.");
+            }
         }
 
         return matcher.replaceAll("?");
+    }
+
+    private boolean isValidIdx(final String text, final int idx) {
+        if(idx > 0 && text.charAt(idx - 1) == '\\') {
+            return false;
+        }
+        return true;
     }
 
 }
