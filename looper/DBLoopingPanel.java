@@ -252,9 +252,9 @@ public class DBLoopingPanel extends JPanel {
     private void onSelectionInColumnList() {
         final DataColumnSpec selected = m_knimeColumnsList.getSelectedValue();
         if(selected != null) {
-//            String name = selected.getName().replace("$", "\\$");
-//            name = "$" + name + "$";
-            String name = DBLoopingNodeModel.getColumnPlaceHolder(selected);
+            String name = selected.getName().replace("$", "\\$");
+            name = "$" + name + "$";
+//            String name = DBLoopingNodeModel.getColumnPlaceHolder(selected);
 
             m_editor.replaceSelection(name);
             m_knimeColumnsList.clearSelection();

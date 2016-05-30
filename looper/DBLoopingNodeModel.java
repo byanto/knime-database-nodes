@@ -1,17 +1,12 @@
 package org.knime.base.node.io.database.looper;
 
-import java.io.StreamTokenizer;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.knime.base.node.io.database.DBNodeModel;
 import org.knime.base.util.flowvariable.FlowVariableProvider;
 import org.knime.base.util.flowvariable.FlowVariableResolver;
-import org.knime.core.data.DataColumnSpec;
 import org.knime.core.data.DataTableSpec;
 import org.knime.core.node.BufferedDataTable;
 import org.knime.core.node.ExecutionContext;
@@ -195,9 +190,9 @@ public class DBLoopingNodeModel extends DBNodeModel implements FlowVariableProvi
         return "SELECT * FROM " + DatabaseQueryConnectionSettings.TABLE_PLACEHOLDER;
     }
 
-    static String getColumnPlaceHolder(final DataColumnSpec colSpec) {
-        return "#{" + colSpec.getName() + "}#";
-    }
+//    static String getColumnPlaceHolder(final DataColumnSpec colSpec) {
+//        return "#{" + colSpec.getName() + "}#";
+//    }
 
     /**
      * Parses the given SQL query and resolves the table placeholder and variables.
@@ -221,66 +216,77 @@ public class DBLoopingNodeModel extends DBNodeModel implements FlowVariableProvi
 
     }
 
-    private String parseData(final String query) {
-        final StreamTokenizer t = new StreamTokenizer(new StringReader(query));
-
-
-
-        return "";
-    }
-
-    private String parseDataColumns(final DataTableSpec inSpec, final String query) throws InvalidSettingsException {
+    private String parseDataColumns(final DataTableSpec inSpec, final String query) {
         m_dataColumns.clear();
-//        String command = new String(query);
-//        int currentIdx = 0;
-//        boolean foundStartIdx = false;
-//        do {
-//            int idx = command.indexOf("$", currentIdx);
-//            if(isValidIdx(command, idx)) {
-//                currentIdx = idx;
-//                foundStartIdx = true;
-//            }
-//            idx = command.indexOf("$", currentIdx);
-//            int endIdx = -1;
-//            if(isValidIdx(command, idx)) {
-//                endIdx = idx;
-//            }
-//
-//            String var = null;
-//            if(endIdx > -1) {
-//                var = command.substring(currentIdx + 1, endIdx);
-//            }
-//
-//            if(var != null) {
-//                m_dataColumns.add(var);
-//                command = command.replace("$" + var + "$", var);
-//            }
-//
-//
-//        } while(true);
+        String command = new String(query);
+        int currentIdx = 0;
+        do {
+            currentIdx = command.indexOf("$", currentIdx);
+            if(currentIdx < 0) {
+                break;
+            }
 
+            // Not a special character
+            if(currentIdx > 0 && command.charAt(currentIdx - 1) == '\\') {
+                currentIdx++;
+                continue;
+            }
 
+            int endIdx = command.indexOf("$", currentIdx + 1);
+            if(endIdx < 0) {
+                final String badVarName = command.substring(currentIdx + 1);
+                throw new IllegalArgumentException("Variable identifier \"" + badVarName + "\" is not closed");
+            }
 
-        final Pattern pattern = Pattern.compile("#{1}\\{(.*?)\\}#{1}");
-        final Matcher matcher = pattern.matcher(query);
-        while (matcher.find()) {
-            final String col = matcher.group(1);
+            // Find the endIdx
+            while(command.charAt(endIdx - 1) == '\\') {
+                endIdx = command.indexOf("$", endIdx + 1);
+                if(endIdx < 0) {
+                    final String badVarName = command.substring(currentIdx + 1);
+                    throw new IllegalArgumentException("Variable identifier \"" + badVarName + "\" is not closed");
+                }
+            }
+
+            String col = command.substring(currentIdx + 1, endIdx);
+            col = col.replace("\\$", "$");
             if (inSpec.containsName(col)){
                 m_dataColumns.add(col);
             } else {
-                throw new InvalidSettingsException("Column " + col
+                throw new IllegalArgumentException("Column " + col
                     + " doesn't exist in the input table.");
             }
-        }
 
-        return matcher.replaceAll("?");
+            final String var = command.substring(currentIdx, endIdx + 1);
+            command = command.replace(var, "?");
+
+        } while(true);
+
+        return command;
     }
 
-    private boolean isValidIdx(final String text, final int idx) {
-        if(idx > 0 && text.charAt(idx - 1) == '\\') {
-            return false;
-        }
-        return true;
-    }
+//    private String parseDataColumns(final DataTableSpec inSpec, final String query) throws InvalidSettingsException {
+//        m_dataColumns.clear();
+//
+//        final Pattern pattern = Pattern.compile("#{1}\\{(.*?)\\}#{1}");
+//        final Matcher matcher = pattern.matcher(query);
+//        while (matcher.find()) {
+//            final String col = matcher.group(1);
+//            if (inSpec.containsName(col)){
+//                m_dataColumns.add(col);
+//            } else {
+//                throw new InvalidSettingsException("Column " + col
+//                    + " doesn't exist in the input table.");
+//            }
+//        }
+//
+//        return matcher.replaceAll("?");
+//    }
+
+//    private boolean isValidIdx(final String text, final int idx) {
+//        if(idx > 0 && text.charAt(idx - 1) == '\\') {
+//            return false;
+//        }
+//        return true;
+//    }
 
 }
